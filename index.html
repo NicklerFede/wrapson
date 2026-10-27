@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WRAPS - Stock y Pedidos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      filter: invert(1);
+      opacity: 0.8;
+      padding: 4px;
+    }
+  </style>
+</head>
+<body class="text-slate-100 min-h-screen pb-32">
+
+  <!-- HEADER -->
+  <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div class="flex items-center justify-between w-full sm:w-auto gap-3">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl cursor-pointer select-none" onclick="accesoRapidoSecreto()">🌯</span>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 class="font-bold text-sm sm:text-lg leading-tight" id="tituloHeader">WRAPS - Stock Disponible</h1>
+              <span id="indicadorEstado" class="bg-amber-500 text-slate-950 font-bold text-[10px] px-2 py-0.5 rounded-full uppercase">Conectando...</span>
+            </div>
+            <p class="text-[11px] sm:text-xs text-slate-400" id="subtituloHeader">Consulta el stock disponible en tiempo real</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 items-center w-full sm:w-auto justify-end">
+        <div class="relative inline-block text-left hidden" id="dropdownAdminContainer">
+          <button onclick="toggleDropdownAdmin()" class="bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-2 shadow-md">
+            <span>⚙️ Opciones Admin</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+          </button>
+
+          <div id="dropdownAdminMenu" class="hidden absolute right-0 mt-2 w-52 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl py-2 z-50 backdrop-blur-md overflow-hidden">
+            <button onclick="exportarJSON(); cerrarDropdownAdmin();" class="w-full text-left px-4 py-2.5 text-xs text-slate-200 hover:bg-slate-800 flex items-center gap-2.5 transition font-medium">
+              📥 <span>Resp (Respaldo)</span>
+            </button>
+            <label class="w-full text-left px-4 py-2.5 text-xs text-slate-200 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer transition font-medium">
+              📤 <span>Cargar (Restaurar)</span>
+              <input type="file" id="inputImportar" accept=".json" class="hidden" onchange="importarJSON(event); cerrarDropdownAdmin();">
+            </label>
+            <div class="border-t border-slate-800 my-1"></div>
+            <button onclick="cerrarSesionAdmin(); cerrarDropdownAdmin();" class="w-full text-left px-4 py-2.5 text-xs text-rose-400 hover:bg-rose-950/50 flex items-center gap-2.5 transition font-bold">
+              🔓 <span>Salir Admin</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+
+    <!-- SECCION LOTE -->
+    <section id="seccionControlLote" class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-5 rounded-2xl shadow-xl border border-slate-800 hidden space-y-3">
+      <div class="flex items-center gap-2 border-b border-slate-800/80 pb-2.5">
+        <span class="text-xl">📦</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Lote en Operación</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center">
+        <div class="sm:col-span-5">
+          <select id="selectLote" onchange="cambiarLoteActivo()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500">
+          </select>
+        </div>
+
+        <div class="sm:col-span-7 flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+          <button onclick="abrirModalRenombrarLote()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+            ✏️ Renombrar
+          </button>
+          <button onclick="eliminarLoteActivo()" class="bg-rose-950/60 hover:bg-rose-900 border border-rose-800/80 text-rose-300 text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+            🗑️ Borrar
+          </button>
+          <button onclick="abrirModalNuevoLote()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-md shrink-0">
+            + Nuevo Lote
+          </button>
+          <button onclick="abrirModalEditarStock()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+            📊 Editar Lote
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL DE LOGIN -->
+    <section id="panelLoginCelda" class="max-w-md mx-auto bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-800 hidden space-y-4">
+      <div class="text-center space-y-1 border-b border-slate-800 pb-3">
+        <h3 class="font-black text-lg text-slate-100">Acceso de Administrador</h3>
+        <p class="text-xs text-slate-400">Ingresá tus credenciales para administrar el sistema</p>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Usuario</label>
+          <input type="text" id="inputUserAdmin" placeholder="Usuario" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Contraseña</label>
+          <input type="password" id="inputPassAdmin" placeholder="Contraseña" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500" onkeydown="if(event.key === 'Enter') procesarLogin()">
+        </div>
+        <button onclick="procesarLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-lg transition shadow-md text-sm">Ingresar al Panel</button>
+      </div>
+    </section>
+
+    <!-- VISTA PUBLICA -->
+    <section id="vistaPublicaStock" class="max-w-4xl mx-auto space-y-6">
+      <div class="relative overflow-hidden bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-10 text-center space-y-3 shadow-2xl backdrop-blur-md">
+        <div class="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-12 -right-12 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        
+        <span class="inline-block bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs px-3 py-1 rounded-full uppercase tracking-widest">
+          🔥 Artesanales & Congelados
+        </span>
+        <h2 class="text-3xl sm:text-5xl font-black text-slate-100 tracking-tight leading-tight">
+          Disponibilidad en Vivo
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-400 max-w-lg mx-auto">
+          Wraps listos para llevar al horno o airfryer. Consultá el stock actualizado al instante y armá tu pedido directamente.
+        </p>
+      </div>
+
+      <div class="bg-slate-900/90 border border-amber-500/30 p-4 sm:p-5 rounded-2xl shadow-lg space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label for="inputClienteWeb" class="block text-xs font-bold text-amber-400 uppercase tracking-wider">👤 Tu Nombre y Apellido (*):</label>
+            <input type="text" id="inputClienteWeb" oninput="ocultarErrorNombre()" placeholder="Ej: Juan Pérez" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500 transition">
+            <p id="errorNombre" class="text-[11px] text-rose-400 font-bold hidden">⚠️ Por favor ingresá tu nombre y apellido para hacer el pedido.</p>
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block text-xs font-bold text-amber-400 uppercase tracking-wider">📦 Tipo de Entrega:</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="btnTipoRetiro" onclick="setTipoEntrega('Retiro')" class="py-2.5 px-3 rounded-xl border text-xs font-bold transition bg-amber-950/60 border-amber-500 text-amber-300 flex items-center justify-center gap-1.5 shadow-sm">
+                🏃‍♂️ Retiro
+              </button>
+              <button type="button" id="btnTipoEnvio" onclick="setTipoEntrega('Envio')" class="py-2.5 px-3 rounded-xl border text-xs font-bold transition bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 shadow-sm">
+                🛵 Envío
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="seccionDireccionEnvio" class="hidden space-y-1.5 pt-2 border-t border-slate-800">
+          <label for="inputDireccionEnvio" class="block text-xs font-bold text-blue-400 uppercase tracking-wider">🏠 Dirección de Envío (*):</label>
+          <input type="text" id="inputDireccionEnvio" oninput="ocultarErrorDireccion()" placeholder="Calle, Número, Barrio / dpto..." class="w-full bg-slate-950 border border-blue-900/60 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          <p id="errorDireccion" class="text-[11px] text-rose-400 font-bold hidden">⚠️ Por favor ingresá la dirección para el envío.</p>
+        </div>
+
+        <div class="space-y-1.5 pt-2 border-t border-slate-800">
+          <label class="block text-xs font-bold text-amber-400 uppercase tracking-wider">💳 Medio de Pago:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="btnPagoWebEfectivo" onclick="setMetodoPagoWeb('Efectivo')" class="py-2.5 px-3 rounded-xl border text-xs font-bold transition bg-amber-950/60 border-amber-500 text-amber-300 flex items-center justify-center gap-1.5 shadow-sm">
+              💵 Efectivo
+            </button>
+            <button type="button" id="btnPagoWebTransf" onclick="setMetodoPagoWeb('Transferencia')" class="py-2.5 px-3 rounded-xl border text-xs font-bold transition bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5 shadow-sm">
+              📱 Transferencia
+            </button>
+          </div>
+        </div>
+
+        <!-- CAMPO DINÁMICO SEGÚN PAGO -->
+        <div id="seccionDetallePagoWeb" class="space-y-1.5 pt-2 border-t border-slate-800">
+          <div id="contenedorPagoEfectivoWeb">
+            <label for="inputPagaConWeb" class="block text-xs font-bold text-amber-400 uppercase tracking-wider">💵 ¿Con cuánto vas a abonar? (para el vuelto):</label>
+            <input type="number" id="inputPagaConWeb" placeholder="Ej: 10000" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500 transition mt-1">
+          </div>
+          <div id="contenedorPagoTransfWeb" class="hidden bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300">
+            💡 Alias para transferir: <strong class="text-amber-400 font-bold select-all">nicklergal</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="gridStockPublico"></div>
+
+      <div class="bg-slate-900/90 backdrop-blur-sm border border-slate-800 rounded-2xl p-6 shadow-sm space-y-3">
+        <div class="flex items-center gap-2 text-amber-400">
+          <span class="text-xl">💡</span>
+          <h3 class="font-bold text-slate-100 text-base">Instrucciones de Preparación</h3>
+        </div>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Se pueden mantener <strong class="text-amber-400">congelados</strong>. Para disfrutarlos, llevalos directamente al <strong class="text-slate-100">horno o airfryer de 25 a 40 minutos</strong> y ¡listos para comer! 🔥🌯
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+        <div class="relative rounded-2xl overflow-hidden border border-slate-800 shadow-xl bg-slate-900 group">
+          <div class="aspect-[4/3] w-full overflow-hidden flex items-center justify-center bg-slate-950">
+            <img id="imgPublica1" src="https://i.postimg.cc/d1LTcSj6/wrap1.jpg" alt="Wrap artesanal dorado" class="w-full h-full object-cover object-center transform group-hover:scale-105 transition duration-500">
+          </div>
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-4">
+            <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Dorados & Caseros</span>
+          </div>
+        </div>
+
+        <div class="relative rounded-2xl overflow-hidden border border-slate-800 shadow-xl bg-slate-900 group">
+          <div class="aspect-[4/3] w-full overflow-hidden flex items-center justify-center bg-slate-950">
+            <img id="imgPublica2" src="https://i.postimg.cc/NM5rvPkb/wrap2.jpg" alt="Wrap artesanal abierto con queso" class="w-full h-full object-cover object-center transform group-hover:scale-105 transition duration-500">
+          </div>
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-4">
+            <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Relleno Abundante</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISTA PRIVADA DE ADMIN -->
+    <section id="vistaPrivadaAdmin" class="hidden space-y-6">
+      
+      <!-- PESTAÑAS DE NAVEGACIÓN -->
+      <div class="flex gap-2 border-b border-slate-800 pb-3 flex-wrap">
+        <button id="btnTabManuales" onclick="cambiarTabAdmin('manuales')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition bg-amber-500 text-slate-950 shadow-md">
+          Registros Manuales
+        </button>
+        <button id="btnTabArmar" onclick="cambiarTabAdmin('armar')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+          Pendientes de entrega
+        </button>
+        <button id="btnTabProgramados" onclick="cambiarTabAdmin('programados')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+          Pendientes a futuro
+        </button>
+        <button id="btnTabCompletados" onclick="cambiarTabAdmin('completados')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+          Pedidos entregados
+        </button>
+        <button id="btnTabPorDia" onclick="cambiarTabAdmin('pordia')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+          Ventas por dia
+        </button>
+      </div>
+
+      <!-- CONTENIDO TAB 1: REGISTROS MANUALES -->
+      <div id="tabContentManuales" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          <!-- REGISTRAR VENTA (5 cols) -->
+          <div class="lg:col-span-5 bg-slate-900/90 backdrop-blur-sm p-4 sm:p-5 rounded-xl shadow-md border border-slate-800 space-y-4">
+            <div class="border-b border-slate-800 pb-3 flex justify-between items-center">
+              <h2 class="font-bold text-slate-200 text-base flex items-center gap-2">📋 Registrar Venta Manual</h2>
+              <span id="badgePrecioVenta" class="text-xs bg-amber-950/80 border border-amber-800/60 text-amber-300 px-2 py-0.5 rounded-full font-bold">$0 c/u</span>
+            </div>
+
+            <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
+              <button id="btnModoSimple" onclick="setModoRegistro('simple')" class="flex-1 py-1.5 rounded-lg text-center transition bg-amber-500 text-slate-950">
+                ⚡ Venta Rápida
+              </button>
+              <button id="btnModoCarrito" onclick="setModoRegistro('carrito')" class="flex-1 py-1.5 rounded-lg text-center transition text-slate-400 hover:text-slate-200">
+                🛒 Pedido Múltiple
+              </button>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre del Cliente</label>
+              <input type="text" id="inputCliente" placeholder="Ej: Juan Pérez / Barra 2" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Fecha de Venta</label>
+              <input type="date" id="inputFecha" onclick="this.showPicker && this.showPicker()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer">
+            </div>
+
+            <!-- MODO SIMPLE -->
+            <div id="sectorModoSimple" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Variedad de Wrap</label>
+                <div class="grid grid-cols-2 gap-2" id="gridVariedades"></div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo de Masa</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <button type="button" id="btnMasaComunSimple" onclick="setTipoMasaSimple('Común')" class="py-2 rounded-lg border text-xs font-bold bg-amber-950/60 border-amber-500 text-amber-300">🌾 Común</button>
+                  <button type="button" id="btnMasaIntegralSimple" onclick="setTipoMasaSimple('Integral')" class="py-2 rounded-lg border text-xs font-bold bg-slate-950 border-slate-800 text-slate-400">🍞 Integral</button>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between items-center mb-1">
+                  <label class="block text-xs font-bold text-slate-400 uppercase">Cantidad</label>
+                  <span class="text-xs text-slate-500">Unidades</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button onclick="modificarCantidad(-1)" class="w-11 h-11 rounded-lg bg-slate-800 text-slate-300 font-bold text-lg hover:bg-slate-700 transition">-</button>
+                  <input type="number" id="inputCantidad" value="1" min="1" readonly class="w-full text-center font-bold text-lg border border-slate-800 rounded-lg py-2 bg-slate-950 text-slate-100">
+                  <button onclick="modificarCantidad(1)" class="w-11 h-11 rounded-lg bg-slate-800 text-slate-300 font-bold text-lg hover:bg-slate-700 transition">+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- MODO CARRITO -->
+            <div id="sectorModoCarrito" class="space-y-3 hidden">
+              <label class="block text-xs font-bold text-amber-400 uppercase">Armar Pedido Multi-Sabor</label>
+              <div class="grid grid-cols-2 gap-2" id="gridVariedadesCarrito"></div>
+              
+              <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo de Masa</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <button type="button" id="btnMasaComunCarrito" onclick="setTipoMasaCarrito('Común')" class="py-1.5 rounded-lg border text-xs font-bold bg-amber-950/60 border-amber-500 text-amber-300">🌾 Común</button>
+                  <button type="button" id="btnMasaIntegralCarrito" onclick="setTipoMasaCarrito('Integral')" class="py-1.5 rounded-lg border text-xs font-bold bg-slate-950 border-slate-800 text-slate-400">🍞 Integral</button>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2 pt-1">
+                <input type="number" id="inputCantidadCarrito" value="1" min="1" class="w-20 text-center font-bold text-sm border border-slate-800 rounded-lg py-2 bg-slate-950 text-slate-100">
+                <button onclick="agregarAlCarrito()" class="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold py-2 rounded-lg border border-amber-500/40 text-xs transition">
+                  + Agregar al Pedido
+                </button>
+              </div>
+
+              <div id="contenedorListaCarrito" class="bg-slate-950 rounded-xl p-3 border border-slate-800 space-y-2 min-h-[60px]">
+                <p class="text-xs text-slate-500 italic text-center py-2">Sin items agregados aún.</p>
+              </div>
+            </div>
+
+            <div class="bg-amber-950/40 border border-amber-800/50 rounded-xl p-3.5 flex justify-between items-center">
+              <div>
+                <span class="block text-xs font-bold text-amber-400 uppercase">Total a Cobrar</span>
+                <span id="labelDetalleCobro" class="text-xs text-amber-300/80">1 wrap × $0</span>
+              </div>
+              <span id="labelTotalCobrar" class="text-xl font-black text-amber-400">$0</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Método de Pago</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button id="btnPagoEfectivo" onclick="setMetodoPago('Efectivo')" class="p-2.5 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 transition border-amber-500 bg-amber-950/60 text-amber-300">💵 Efectivo</button>
+                <button id="btnPagoTransf" onclick="setMetodoPago('Transferencia')" class="p-2.5 rounded-lg border border-slate-800 text-xs font-medium text-slate-400 flex items-center justify-center gap-1.5 transition hover:bg-slate-800">📱 Transferencia</button>
+              </div>
+            </div>
+
+            <div id="seccionVuelto" class="bg-blue-950/40 border border-blue-800/50 rounded-xl p-3.5 space-y-2">
+              <label class="block text-xs font-bold text-blue-300 uppercase">Calculadora de Vuelto</label>
+              <input type="number" id="inputPagoCliente" placeholder="Pagó con $" oninput="calcularVuelto()" class="w-full bg-slate-950 border border-blue-900 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <div class="flex justify-between items-center text-xs pt-1 border-t border-blue-900/60">
+                <span class="text-blue-300 font-medium">Vuelto a Entregar:</span>
+                <span id="labelMontoVuelto" class="font-bold text-blue-400 text-base">$0</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Pago</label>
+                <select id="selectEstadoPago" class="w-full border border-slate-800 rounded-lg px-2 py-2 text-xs font-medium bg-slate-950 text-slate-200">
+                  <option value="Pagado">✅ Pagado</option>
+                  <option value="Pendiente">❌ No Pagado</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Entrega</label>
+                <select id="selectEstadoEntrega" class="w-full border border-slate-800 rounded-lg px-2 py-2 text-xs font-medium bg-slate-950 text-slate-200">
+                  <option value="Pendiente">⏳ Pendiente</option>
+                  <option value="Entregado">📦 Entregado</option>
+                  <option value="Futuro">🗓️ Pedido a futuro</option>
+                </select>
+              </div>
+            </div>
+
+            <button onclick="guardarVenta()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl shadow-md transition text-center flex items-center justify-center gap-2 text-base">✨ Confirmar Venta</button>
+          </div>
+
+          <!-- DERECHA (7 cols) -->
+          <div class="lg:col-span-7 space-y-6">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <!-- Stock del Lote -->
+              <section class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-5 rounded-xl shadow-md border border-slate-800">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-3">
+                  <h2 class="font-bold text-slate-200 text-base">📊 Stock Activo</h2>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-950 text-slate-400 uppercase font-bold text-[10px]">
+                      <tr>
+                        <th class="py-2 px-2">Variedad</th>
+                        <th class="py-2 px-2 text-center">Común (Disp/Ini)</th>
+                        <th class="py-2 px-2 text-center">Integral (Disp/Ini)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tablaStock" class="divide-y divide-slate-800"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <!-- Fotos Públicas -->
+              <section class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-5 rounded-xl shadow-md border border-slate-800 space-y-4 flex flex-col justify-between">
+                <div class="border-b border-slate-800 pb-3">
+                  <h2 class="font-bold text-slate-200 text-base">🖼️ Fotos Públicas</h2>
+                </div>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Foto 1 (Wrap Entero)</label>
+                    <label class="flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs py-2.5 rounded-lg cursor-pointer transition border border-slate-700">
+                      📁 Cambiar Foto 1
+                      <input type="file" accept="image/*" class="hidden" onchange="subirImagenAdmin(event, 1)">
+                    </label>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Foto 2 (Wrap Cortado)</label>
+                    <label class="flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs py-2.5 rounded-lg cursor-pointer transition border border-slate-700">
+                      📁 Cambiar Foto 2
+                      <input type="file" accept="image/*" class="hidden" onchange="subirImagenAdmin(event, 2)">
+                    </label>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- RENDIMIENTO Y PORCENTAJES -->
+            <section class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-5 rounded-xl shadow-md border border-slate-800 space-y-4">
+              <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h2 class="font-bold text-slate-200 text-base flex items-center gap-2">📈 Rendimiento por Sabor</h2>
+                <span id="textoLoteActivoRendimiento" class="text-xs text-slate-400 font-medium truncate max-w-[120px] sm:max-w-none">Lote actual</span>
+              </div>
+              <div class="space-y-3.5" id="contenedorRendimientoSabores"></div>
+            </section>
+
+            <!-- RESUMEN FINANCIERO PROFESIONAL -->
+            <section class="bg-slate-900/90 backdrop-blur-sm p-5 sm:p-6 rounded-2xl shadow-xl border border-slate-800 space-y-5">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800/80 pb-3">
+                <div>
+                  <h2 class="font-black text-slate-100 text-lg flex items-center gap-2">
+                    💰 Resumen Financiero del Lote
+                  </h2>
+                  <p class="text-xs text-slate-400">Control de ingresos brutos, netos, reinversión y caja</p>
+                </div>
+                <span id="resumenVendidosBadge" class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full font-bold">
+                  0 wraps vendidos
+                </span>
+              </div>
+
+              <!-- BLOQUE DE VENTA BRUTA Y NETO -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <!-- INGRESOS BRUTOS -->
+                <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
+                  <div class="flex justify-between items-center border-b border-slate-800/80 pb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-amber-400">📊 Venta Bruta (Cobrado)</span>
+                    <span id="resumenBrutaTotal" class="text-sm font-black text-slate-100">$0</span>
+                  </div>
+                  <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center">
+                      <span class="text-slate-400 flex items-center gap-1.5">💵 Efectivo Bruto:</span>
+                      <strong id="resumenEfectivoBruto" class="text-slate-200 font-bold">$0</strong>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-slate-400 flex items-center gap-1.5">📱 Transferencias Brutas:</span>
+                      <strong id="resumenTransfBruta" class="text-slate-200 font-bold">$0</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- INGRESOS NETOS (GANANCIA LIMPIA) -->
+                <div class="bg-emerald-950/20 p-4 rounded-xl border border-emerald-800/40 space-y-3 shadow-inner">
+                  <div class="flex justify-between items-center border-b border-emerald-800/40 pb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">✨ Ganancia Neta (Limpia)</span>
+                    <span id="resumenNetaTotal" class="text-sm font-black text-emerald-400">$0</span>
+                  </div>
+                  <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center">
+                      <span class="text-slate-400 flex items-center gap-1.5">💵 Neto Efectivo:</span>
+                      <strong id="resumenEfectivoNeto" class="text-emerald-300 font-bold">$0</strong>
+                    </div>
+                    <div class="flex justify-between items-center">
+                      <span class="text-slate-400 flex items-center gap-1.5">📱 Neto Transferencia:</span>
+                      <strong id="resumenTransfNeta" class="text-emerald-300 font-bold">$0</strong>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- BLOQUE SECUNDARIO: REINVERSION & POR COBRAR -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <div class="bg-amber-950/20 p-4 rounded-xl border border-amber-800/40 flex justify-between items-center shadow-sm">
+                  <div>
+                    <span class="block text-xs font-bold text-amber-400 uppercase tracking-wider">🔄 Fondo para Re-Invertir</span>
+                    <span class="text-[11px] text-slate-400">Costo total del stock inicial del lote</span>
+                  </div>
+                  <span id="resumenReinversion" class="text-lg font-black text-amber-300">$0</span>
+                </div>
+
+                <div class="bg-rose-950/20 p-4 rounded-xl border border-rose-800/40 flex justify-between items-center shadow-sm">
+                  <div>
+                    <span class="block text-xs font-bold text-rose-400 uppercase tracking-wider">⏳ Por Cobrar (Fiados)</span>
+                    <span class="text-[11px] text-slate-400">Ventas entregadas sin pagar</span>
+                  </div>
+                  <span id="resumenFiado" class="text-lg font-black text-rose-400">$0</span>
+                </div>
+
+              </div>
+
+              <!-- BLOQUE BANCO Y CAJA REAL -->
+              <div class="bg-blue-950/30 border border-blue-900/60 p-4 rounded-xl space-y-2">
+                <span class="block text-xs font-bold text-blue-300 uppercase tracking-wider">🏦 Arqueo de Dinero Disponibles</span>
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                  <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Caja Efectivo Total</span>
+                    <span id="resumenCajaEfectivoReal" class="text-sm font-black text-slate-100">$0</span>
+                  </div>
+                  <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <span class="block text-[10px] text-slate-400 uppercase font-bold">Saldo Banco / Transf</span>
+                    <span id="resumenBancoReal" class="text-sm font-black text-blue-300">$0</span>
+                  </div>
+                </div>
+              </div>
+
+            </section>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CONTENIDO TAB 2: PENDIENTES DE ENTREGA -->
+      <div id="tabContentArmar" class="space-y-6 hidden">
+        <section class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-6 rounded-xl shadow-md border border-slate-800 space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="font-bold text-slate-200 text-base sm:text-lg flex items-center gap-2">
+                📦 Pendientes de entrega
+              </h2>
+              <p class="text-xs text-slate-400">Pedidos hechos desde la web o cargados manualmente pendientes de entrega</p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end">
+              <span id="resumenTotalPendientesNum" class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-full font-bold shrink-0">
+                0 pendientes
+              </span>
+            </div>
+          </div>
+
+          <!-- BANNER RESUMEN FALTANTES -->
+          <div id="bannerTotalesSaboresArmado" class="bg-amber-950/30 border border-amber-800/50 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-inner">
+            <div class="space-y-0.5">
+              <span class="block text-[10px] font-black uppercase tracking-widest text-amber-400">🔥 Resumen para Armado de Pedidos (Faltantes)</span>
+              <div id="labelResumenTotalesWraps" class="text-base font-black text-slate-100 flex items-center gap-2">
+                <span>Wraps Faltantes por Armar: <strong class="text-amber-400 text-lg">0</strong></span>
+              </div>
+            </div>
+            <div id="gridChipsSaboresPendientes" class="flex flex-wrap items-center gap-2 w-full sm:w-auto"></div>
+          </div>
+
+          <div id="contenedorPendientesAgrupado" class="space-y-3"></div>
+        </section>
+      </div>
+
+      <!-- CONTENIDO TAB 3: PENDIENTES A FUTURO -->
+      <div id="tabContentProgramados" class="space-y-6 hidden">
+        <section class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-6 rounded-xl shadow-md border border-slate-800 space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="font-bold text-slate-200 text-base sm:text-lg flex items-center gap-2">
+                🗓️ Pendientes a futuro (No descuentan stock actual)
+              </h2>
+              <p class="text-xs text-slate-400">Guarda pedidos programados que no afectan el stock hasta que decidas entregarlos</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="resumenTotalProgramadosNum" class="text-xs bg-blue-500/20 text-blue-300 border border-blue-500/40 px-3 py-1.5 rounded-full font-bold">
+                0 programados
+              </span>
+            </div>
+          </div>
+
+          <div id="contenedorProgramadosAgrupado" class="space-y-3"></div>
+        </section>
+      </div>
+
+      <!-- CONTENIDO TAB 4: PEDIDOS ENTREGADOS -->
+      <div id="tabContentCompletados" class="space-y-6 hidden">
+        <section class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-6 rounded-xl shadow-md border border-slate-800 space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="font-bold text-slate-200 text-base sm:text-lg flex items-center gap-2">
+                ✅ Pedidos entregados (Historial)
+              </h2>
+              <p class="text-xs text-slate-400">Historial de pedidos ya entregados a los clientes</p>
+            </div>
+            <span id="resumenTotalCompletadosNum" class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-full font-bold">
+              0 entregados
+            </span>
+          </div>
+
+          <div id="contenedorCompletadosAgrupado" class="space-y-3"></div>
+        </section>
+      </div>
+
+      <!-- CONTENIDO TAB 5: VENTAS POR DIA -->
+      <div id="tabContentPorDia" class="space-y-6 hidden">
+        <section class="bg-slate-900/90 backdrop-blur-sm p-4 sm:p-6 rounded-xl shadow-md border border-slate-800 space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="font-bold text-slate-200 text-base sm:text-lg flex items-center gap-2">
+                📅 Ventas por dia
+              </h2>
+              <p class="text-xs text-slate-400">Agrupación de unidades vendidas y totales recaudados por cada día</p>
+            </div>
+            <span id="resumenDiasTotalNum" class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-full font-bold">
+              0 días registrados
+            </span>
+          </div>
+
+          <div id="contenedorVentasPorDia" class="space-y-3"></div>
+        </section>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- BOTÓN FLOTANTE WHATSAPP -->
+  <button id="btnWhatsappFlotante" onclick="registrarPedidoWebYEnviarWhatsApp(event)" class="fixed bottom-6 right-6 bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-3.5 rounded-full flex items-center gap-3 shadow-2xl transition transform hover:scale-105 z-50 cursor-pointer border-none" title="Hacer pedido por WhatsApp">
+    <svg class="w-6 h-6 fill-current shrink-0" viewBox="0 0 24 24">
+      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+    </svg>
+    <span id="labelTextoWhatsapp" class="text-white font-bold text-sm">Hacer pedido</span>
+  </button>
+
+  <!-- MODAL EDITAR PEDIDO PROGRAMADO / FUTURO -->
+  <div id="modalEditarProgramado" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-slate-100">✏️ Editar Pedido Futuro</h3>
+        <button onclick="cerrarModales()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+      </div>
+
+      <input type="hidden" id="editProgId">
+
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre del Cliente</label>
+        <input type="text" id="editProgCliente" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100">
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Variedad</label>
+          <select id="editProgVariedad" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100">
+            <option value="Carne">Carne</option>
+            <option value="Pollo">Pollo</option>
+            <option value="Bondiola">Bondiola</option>
+            <option value="Caprese">Caprese</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo de Masa</label>
+          <select id="editProgTipoMasa" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100">
+            <option value="Común">🌾 Común</option>
+            <option value="Integral">🍞 Integral</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Cantidad</label>
+          <input type="number" id="editProgCantidad" min="1" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-slate-100">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Fecha Programada</label>
+          <input type="date" id="editProgFecha" onclick="this.showPicker && this.showPicker()" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 cursor-pointer">
+        </div>
+      </div>
+
+      <button onclick="guardarEdicionProgramado()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg transition shadow-md">Guardar Cambios</button>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR PEDIDO COMPLETO DE CLIENTE -->
+  <div id="modalEditarCliente" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-slate-100">✏️ Editar Pedido Completo del Cliente</h3>
+        <button onclick="cerrarModales()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+      </div>
+
+      <input type="hidden" id="editClienteNorm">
+      <input type="hidden" id="editClienteloteId">
+
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre del Cliente</label>
+        <input type="text" id="editClienteNombre" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500">
+      </div>
+
+      <div class="bg-amber-950/30 border border-amber-800/50 p-3 rounded-xl flex justify-between items-center text-xs">
+        <span class="font-bold text-amber-400">Total a Pagar del Pedido:</span>
+        <span id="editClienteTotalMonto" class="font-black text-amber-300 text-base">$0</span>
+      </div>
+
+      <div class="bg-blue-950/40 border border-blue-800/50 rounded-xl p-3 space-y-1.5">
+        <label class="block text-xs font-bold text-blue-300 uppercase">🔄 Vuelto dado por Transferencia ($)</label>
+        <input type="number" id="editClienteVueltoTransf" placeholder="0" min="0" class="w-full bg-slate-950 border border-blue-900 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <p class="text-[10px] text-blue-300/70 italic">Se descontará de la caja de transferencias para un control exacto.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Estado Pago</label>
+          <select id="editClienteEstadoPago" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-medium text-slate-100">
+            <option value="Pagado">✅ Pagado</option>
+            <option value="Pendiente">❌ No Pagado / Pendiente</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Estado Entrega</label>
+          <select id="editClienteEstadoEntrega" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-medium text-slate-100">
+            <option value="Entregado">📦 Entregado</option>
+            <option value="Pendiente">⏳ Pendiente</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="guardarEdicionCliente()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-lg transition shadow-md">Guardar Cambios</button>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR VENTA INDIVIDUAL -->
+  <div id="modalEditarVenta" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-slate-100">✏️ Editar Ítem del Pedido</h3>
+        <button onclick="cerrarModales()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+      </div>
+      <input type="hidden" id="editVentaId">
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Cliente</label>
+        <input type="text" id="editVentaCliente" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100">
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Variedad</label>
+          <select id="editVentaVariedad" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100">
+            <option value="Carne">Carne</option>
+            <option value="Pollo">Pollo</option>
+            <option value="Bondiola">Bondiola</option>
+            <option value="Caprese">Caprese</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo de Masa</label>
+          <select id="editVentaTipoMasa" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100">
+            <option value="Común">🌾 Común</option>
+            <option value="Integral">🍞 Integral</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Cantidad</label>
+        <input type="number" id="editVentaCantidad" min="1" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-slate-100">
+      </div>
+      <button onclick="guardarEdicionVenta()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-lg transition">Guardar</button>
+    </div>
+  </div>
+
+  <!-- MODALES LOTE Y STOCK -->
+  <div id="modalNuevoLote" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-slate-100">Crear Nuevo Lote</h3>
+        <button onclick="cerrarModales()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre del Lote</label>
+        <input type="text" id="inputNombreNuevoLote" placeholder="Ej: Lote Noviembre" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100">
+      </div>
+      <div class="grid grid-cols-2 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Precio Venta ($)</label>
+          <input type="number" id="nuevoPrecioVenta" value="5700" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-100">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Costo Compra ($)</label>
+          <input type="number" id="nuevoPrecioCompra" value="3050" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-100">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Stock Inicial (Común / Integral)</label>
+        <div class="space-y-2.5" id="inputsNuevoStock"></div>
+      </div>
+      <button onclick="crearNuevoLote()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg">Guardar Lote</button>
+    </div>
+  </div>
+
+  <div id="modalRenombrarLote" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-slate-100">✏️ Cambiar Nombre del Lote</h3>
+        <button onclick="cerrarModales()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nuevo Nombre</label>
+        <input type="text" id="inputNuevoNombreLote" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm font-bold text-slate-100">
+      </div>
+      <button onclick="guardarNuevoNombreLote()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-lg">Actualizar Nombre</button>
+    </div>
+  </div>
+
+  <div id="modalEditarStock" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <h3 class="font-bold text-slate-100">📊 Editar Stock y Precios del Lote</h3>
+        <button onclick="cerrarModales()" class="text-slate-400 hover:text-slate-200 text-lg">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Precio Venta ($)</label>
+          <input type="number" id="editPrecioVenta" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-100">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Costo Compra ($)</label>
+          <input type="number" id="editPrecioCompra" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-sm font-bold text-slate-100">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Stock Inicial (Común / Integral)</label>
+        <div class="space-y-2.5" id="inputsEditarStock"></div>
+      </div>
+      <button onclick="guardarEdicionStock()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-lg">Guardar Cambios</button>
+    </div>
+  </div>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
